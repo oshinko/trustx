@@ -4,8 +4,8 @@
 
 次のことを実現したい。
 
-- トラストレスな署名付きの履歴書 (プロフィール)
-- 他のネットワークに簡単にインポートできる
+- トラストレスな署名付きのプロフィール
+- 他のネットワークに簡単にインポート可能
 - ヒューマンフレンドリーなテキストデータに変換可能
 - プロフィール情報を始めとした様々なデータへの署名機能
 - 様々なモジュールを後から導入可能
@@ -13,61 +13,95 @@
 プロフィールの YAML 例を次に示す。
 
 ```yaml
-text: "このファイルをサービスサイトにアップロードすることで、簡単に署名付きの履歴書をインポートできます。
+BASE58_ContestProviderA_Sig_For_Skill:
+  signer: BASE58_ContestProviderA_Address
+  data:
+    word:
+      level: 3
+    excel:
+      level: 3
 
-text: フリーテキストでアピールできる領域
+BASE58_ContestProviderB_Sig_For_Skill:
+  signer: BASE58_ContestProviderB_Address
+  data:
+    簿記:
+      level: 3
 
-skills: コンテストのスコアなどを元にレベルを振ったもの
-
-experiences: ひとつひとつの経験を列挙
-
-reputations: 他の人からの評判を列挙"
-
-skills:
-  word:
-    level: 3
-    signatures:
-      ContestProvider_A: ContestProvider_A_Sig
-  excel:
-    level: 3
-    signatures:
-      ContestProvider_A: ContestProvider_A_Sig
-  簿記:
-    level: 3
-    signatures:
-      ContestProvider_B: ContestProvider_B_Sig
-
-experiences:
-  - title: 企業 A
+BASE58_ClientA_Sig_For_Experience:
+  signer: BASE58_ClientA_Address
+  data:
+    title: 企業 A 経理事務
     since: 2019-01-01
     until: 2019-12-31
     tags: [word, excel, 簿記]
     text: 神奈川県にある企業様の経理事務を担当しました。
-    signatures:
-      Client_A: Client_A_Sig
-  - title: 知人 A
+
+BASE58_FriendA_Sig_For_Experience:
+  signer: BASE58_FriendA_Address
+  data:
+    title: 知人 A 経理事務
     since: 2020-01-01
     until: 2020-01-31
     tags: [word, excel, 簿記]
     text: 知人の経理事務を支援しました。
-    signatures:
-      Friend_A: Friend_A_Sig
-  - title: 企業 B
+
+BASE58_ClientB_Sig_For_Experience:
+  signer: BASE58_ClientB_Address
+  data:
+    title: 企業 B 経理事務
     since: 2020-01-01
     until: 2020-12-31
     tags: [word, excel, 簿記]
     text: 埼玉県にある企業様の経理事務を担当しました。
-    signatures:
-      Client_B: Client_B_Sig
 
-reputations:
-  - text: とても真面目な良い方です。
-    signatures:
-      Client_A: Client_A_Sig
-      Client_B: Client_B_Sig
-  - text: この度はご支援いただき感謝します。
-    signatures:
-      Friend_A: Friend_A_Sig
+BASE58_ClientA_Sig_For_Reputation:
+  signer: BASE58_ClientA_Address
+  data: とても真面目な良い方です。
+
+BASE58_ClientB_Sig_For_Reputation:
+  signer: BASE58_ClientB_Address
+  data: とても真面目な良い方です。
+
+BASE58_FriendA_Sig_For_Reputation:
+  signer: BASE58_FriendA_Address
+  data: いつも助けていただいています。ありがとう！
+```
+
+この人のスキルを証明するためのコンテスト主催者による署名例を次に示す。
+
+```sh
+cat << EOF > contests.yaml
+word:
+  level: 3
+excel:
+  level: 3
+EOF
+python sign.py gen | python sign.py --data contests.yaml -v
+```
+
+コマンドの出力結果は次のように得られる。
+
+```
+data (hash) 08246a01b57b08469a3f5de8d52d28d186b8b6cc110919bf95ceb827268eec71
+public key a041c96ca46f01bc45b6baa0bf658b5ba95cbd04a452cf83a99caa49f48a70ae19357231f321ce127fbdd62098efda214be424f83c7e10d3ce1d1b6213393c41
+public key (uncompressed, hex) 04a041c96ca46f01bc45b6baa0bf658b5ba95cbd04a452cf83a99caa49f48a70ae19357231f321ce127fbdd62098efda214be424f83c7e10d3ce1d1b6213393c41
+public key (compressed, hex) 03a041c96ca46f01bc45b6baa0bf658b5ba95cbd04a452cf83a99caa49f48a70ae
+address (uncompressed, b58) 1AtKbZhV5Zi9RVzjUVmKmBd9N8JgcibceZ
+address (compressed, b58) 13cqFX4hQUxC8KhoPi8BWJCE2zGfhDkfyf
+signature (hex) 0250a98295ae72079e91d8166fd4cd41b4764498b71d8c7292a2293e841298b9a2f4e73dea877eedcacc0a48e71de013c800858ad7f9789e6d56e0e0bd29ed9e
+signature (b58) 3ghxGqpgwLFLLCx1f4c8LS5h6xgqGo56kzD8L73sG7kk4bpJmP3Uuu63cNbqcn4rr3paDrVuguW2Uq3fqKWwDo3
+```
+
+署名をキーにし、署名者のアドレスとデータを含めた YAML を作成する。
+
+```yaml
+3ghxGqpgwLFLLCx1f4c8LS5h6xgqGo56kzD8L73sG7kk4bpJmP3Uuu63cNbqcn4rr3paDrVuguW2Uq3fqKWwDo3:
+  signer: 13cqFX4hQUxC8KhoPi8BWJCE2zGfhDkfyf
+  data:
+    word:
+      level: 3
+    excel:
+      level: 3
 ```
 
 
