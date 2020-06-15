@@ -30,12 +30,12 @@ concat_parser.add_argument('data', type=pathlib.Path, nargs='+')
 
 sign_parser = subparsers.add_parser('sign')
 sign_parser.add_argument('--signing-key', type=pathlib.Path, required=True)
-sign_parser.add_argument('data', type=pathlib.Path)
+sign_parser.add_argument('data', type=pathlib.Path, nargs='?')
 
 verify_parser = subparsers.add_parser('verify')
 verify_parser.add_argument('--verifying-key', type=pathlib.Path, required=True)
 verify_parser.add_argument('--data', type=pathlib.Path, required=True)
-verify_parser.add_argument('signature', type=pathlib.Path)
+verify_parser.add_argument('signature', type=pathlib.Path, nargs='?')
 
 addr_parser = subparsers.add_parser('addr')
 addr_parser.add_argument('--signing-key', type=pathlib.Path)
@@ -43,10 +43,10 @@ addr_parser.add_argument('--verifying-key', type=pathlib.Path)
 addr_parser.add_argument('--encoding', default='compressed')
 
 hex_parser = subparsers.add_parser('hex')
-hex_parser.add_argument('input', type=pathlib.Path)
+hex_parser.add_argument('data', type=pathlib.Path, nargs='?')
 
 base58_parser = subparsers.add_parser('base58')
-base58_parser.add_argument('input', type=pathlib.Path)
+base58_parser.add_argument('data', type=pathlib.Path, nargs='?')
 
 args = parser.parse_args()
 
@@ -67,12 +67,17 @@ if args.command == 'concat':
 if args.command == 'sign':
     sk_str = args.signing_key.read_bytes()
     sk = ecdsa.SigningKey.from_string(sk_str, curve, hashfunc)
-    sys.stdout.buffer.write(sk.sign(args.data.read_bytes()))
+    data = args.data.read_bytes() if args.data else sys.stdin.buffer.read()
+    sys.stdout.buffer.write(sk.sign(data))
 
 if args.command == 'verify':
     vk_str = args.verifying_key.read_bytes()
     vk = ecdsa.VerifyingKey.from_string(vk_str, curve, hashfunc)
-    vk.verify(args.signature.read_bytes(), args.data.read_bytes())
+    if args.signature:
+        sig = args.signature.read_bytes()
+    else:
+        sig = sys.stdin.buffer.read()
+    vk.verify(sig, args.data.read_bytes())
     print('OK')
 
 if args.command == 'addr':
@@ -88,7 +93,9 @@ if args.command == 'addr':
     print(get_address_from_verifying_key(vk, encoding=args.encoding))
 
 if args.command == 'hex':
-    print(args.input.read_bytes().hex())
+    data = args.data.read_bytes() if args.data else sys.stdin.buffer.read()
+    print(data.hex())
 
 if args.command == 'base58':
-    print(base58.b58encode(args.input.read_bytes()).decode('ascii'))
+    data = args.data.read_bytes() if args.data else sys.stdin.buffer.read()
+    print(base58.b58encode(data).decode('ascii'))
