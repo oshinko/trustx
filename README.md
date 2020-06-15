@@ -13,58 +13,67 @@
 プロフィールの YAML 例を次に示す。
 
 ```yaml
-BASE58_ContestProviderA_Sig_For_Skill:
+BASE58_ContestProviderA_Sig_For_Skills:
   by: BASE58_ContestProviderA_Address
   data:
-    word:
-      level: 3
-    excel:
-      level: 3
+    skills:
+      word:
+        level: 3
+      excel:
+        level: 3
+    signed: 2019-01-01T03:00:00
 
-BASE58_ContestProviderB_Sig_For_Skill:
+BASE58_ContestProviderB_Sig_For_Skills:
   by: BASE58_ContestProviderB_Address
   data:
-    簿記:
-      level: 3
+    skills:
+      簿記:
+        level: 3
+    signed: 2019-02-01T12:00:00+09:00
 
-BASE58_ClientA_Sig_For_Experience:
+BASE58_ClientA_Sig_For_Experiences:
   by: BASE58_ClientA_Address
   data:
-    title: 企業 A 経理事務
-    since: 2019-01-01
-    until: 2019-12-31
-    tags: [word, excel, 簿記]
-    text: 神奈川県にある企業様の経理事務を担当しました。
+    experiences:
+      企業 A 経理事務:
+        since: 2019-01-01T10:00:00+09:00
+        until: 2019-12-28T19:00:00+09:00
+        tags: [word, excel, 簿記]
+        text: 神奈川県にある企業様の経理事務を担当しました。
+    signed: 2019-12-28T19:00:00+09:00
 
-BASE58_FriendA_Sig_For_Experience:
+BASE58_FriendA_Sig_For_Experiences_And_Reputations:
   by: BASE58_FriendA_Address
   data:
-    title: 知人 A 経理事務
-    since: 2020-01-01
-    until: 2020-01-31
-    tags: [word, excel, 簿記]
-    text: 知人の経理事務を支援しました。
+    experiences:
+      - title: 知人 A 経理事務
+        since: 2020-01-01T10:00:00+09:00
+        until: 2020-01-31T19:00:00+09:00
+        tags: [word, excel, 簿記]
+        text: 知人の経理事務を支援しました。
+    reputations:
+      - いつも助けていただいています。ありがとう！
+    signed: 2020-01-31T19:00:00+09:00
 
-BASE58_ClientB_Sig_For_Experience:
+BASE58_ClientB_Sig_For_Experiences_And_Reputations:
   by: BASE58_ClientB_Address
   data:
-    title: 企業 B 経理事務
-    since: 2020-01-01
-    until: 2020-12-31
-    tags: [word, excel, 簿記]
-    text: 埼玉県にある企業様の経理事務を担当しました。
+    experiences:
+      - title: 企業 B 経理事務
+        since: 2020-01-01T10:00:00+09:00
+        until: 2020-12-28T19:00:00+09:00
+        tags: [word, excel, 簿記]
+        text: 埼玉県にある企業様の経理事務を担当しました。
+    reputations:
+      - とても真面目な良い方です。
+    signed: 2020-12-28T19:00:00+09:00
 
-BASE58_ClientA_Sig_For_Reputation:
+BASE58_ClientA_Sig_For_Reputations:
   by: BASE58_ClientA_Address
-  data: とても真面目な良い方です。
-
-BASE58_ClientB_Sig_For_Reputation:
-  by: BASE58_ClientB_Address
-  data: とても真面目な良い方です。
-
-BASE58_FriendA_Sig_For_Reputation:
-  by: BASE58_FriendA_Address
-  data: いつも助けていただいています。ありがとう！
+  data:
+    reputations:
+      - とても真面目な良い方です。
+    signed: 2019-12-28T19:00:00+09:00
 ```
 
 この人のスキルを証明するためのコンテスト主催者による署名例を次に示す。
@@ -87,10 +96,12 @@ python tool.py gen --verifying-key ./user.verifying.key
 
 ```sh
 cat << EOF > user.skills.yaml
-word:
-  level: 3
-excel:
-  level: 3
+skills:
+  word:
+    level: 3
+  excel:
+    level: 3
+signed: `date +%Y-%m-%dT%H:%M:%S%:z`
 EOF
 ```
 
@@ -108,7 +119,7 @@ python tool.py base58 ./user.skills.data.sig
 ```
 
 ```
-3nYuJp477JBDcddxtaSsKTUhcKqANmh8uP9AFPZj5ezbUZBz4uWDos3rsvupsJcDFB38p5FmXnTB4nNrH5F75NNm
+4bjnskhE4MF3Mn59QzDfvuJTRCyNMU8n9e1PZiExXDEVE5XiW1LVTcD3MEseu5ze9udk3LabV6RvpFNgTuhbthKk
 ```
 
 署名を検証する。
@@ -148,14 +159,16 @@ python tool.py addr --verifying-key ./user.verifying.key
 ユーザーのアドレスを示す `to` は、システムの文脈から自明ならば省略できる。
 
 ```yaml
-3nYuJp477JBDcddxtaSsKTUhcKqANmh8uP9AFPZj5ezbUZBz4uWDos3rsvupsJcDFB38p5FmXnTB4nNrH5F75NNm:
+4bjnskhE4MF3Mn59QzDfvuJTRCyNMU8n9e1PZiExXDEVE5XiW1LVTcD3MEseu5ze9udk3LabV6RvpFNgTuhbthKk:
   by: 1LtfiUjeeZL3q4CneVAFd3M8a3wi3Sy8x9
   to: 1NgQCSskEmtRg7xeFJnWRzt875czviaLwF
   data:
-    word:
-      level: 3
-    excel:
-      level: 3
+    skills:
+      word:
+        level: 3
+      excel:
+        level: 3
+    signed: 2020-06-15T14:03:49+09:00
 ```
 
 
