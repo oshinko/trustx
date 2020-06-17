@@ -81,15 +81,15 @@ BASE58_ClientA_Sig_For_Reputations:
 コンテスト主催者のキーを作成する。
 
 ```sh
-python tool.py gen --signing-key ./contest-provider.signing.key \
-                   --verifying-key ./contest-provider.verifying.key
+python -m trustx gen --signing-key ./contest-provider.signing.key \
+                     --verifying-key ./contest-provider.verifying.key
 ```
 
 ユーザーのキーを取得する。
 本来、ユーザー自信がキーペアを作成するが、例として検証キーのみ作成する。
 
 ```sh
-python tool.py gen --verifying-key ./user.verifying.key
+python -m trustx gen --verifying-key ./user.verifying.key
 ```
 
 コンテストの成績データを用意する。
@@ -109,14 +109,14 @@ EOF
 ユーザーのキーとコンテストの成績データを結合したファイルを作成する。
 
 ```sh
-python tool.py concat ./user.verifying.key ./user.skills.yaml > ./user.skills.data
+python -m trustx concat ./user.verifying.key ./user.skills.yaml > ./user.skills.data
 ```
 
 署名する。
 
 ```sh
-python tool.py sign --signing-key ./contest-provider.signing.key ./user.skills.data > ./user.skills.data.sig
-python tool.py base58 ./user.skills.data.sig
+python -m trustx sign --signing-key ./contest-provider.signing.key ./user.skills.data > ./user.skills.data.sig
+python -m trustx base58 ./user.skills.data.sig
 ```
 
 ```
@@ -126,7 +126,7 @@ python tool.py base58 ./user.skills.data.sig
 署名を検証する。
 
 ```sh
-python tool.py verify --verifying-key ./contest-provider.verifying.key \
+python -m trustx verify --verifying-key ./contest-provider.verifying.key \
                       --data ./user.skills.data \
                       ./user.skills.data.sig
 ```
@@ -138,7 +138,7 @@ OK
 コンテスト主催者のアドレスを取得する。
 
 ```sh
-python tool.py addr --signing-key ./contest-provider.signing.key
+python -m trustx addr --signing-key ./contest-provider.signing.key
 ```
 
 ```
@@ -148,7 +148,7 @@ python tool.py addr --signing-key ./contest-provider.signing.key
 ユーザーのアドレスを取得する。
 
 ```sh
-python tool.py addr --verifying-key ./user.verifying.key
+python -m trustx addr --verifying-key ./user.verifying.key
 ```
 
 ```
@@ -186,6 +186,62 @@ python tool.py addr --verifying-key ./user.verifying.key
     - 署名履歴から新しい鍵で署名し直すのが主なリカバリ案となる
 
 
+## セッションモジュール
+
+ネットワークを利用するサービスへのサインアップおよびサインインに用いる。
+例を次に示す。
+
+ユーザーのキーを作成する。
+
+```sh
+python -m trustx gen --signing-key ./user.signing.key \
+                     --verifying-key ./user.verifying.key
+```
+
+ユーザーの検証キーを引数に設定し、サービスの nonce 取得 API をコールする。
+
+```sh
+b58_vk=`python -m trustx base58 ./user.verifying.key`
+b58_nonce=`python -m trustx.examples.service "GET /auth/nonce" --verifying-key $b58_vk`
+```
+
+取得した nonce に署名し、Base58 に変換する。
+
+```sh
+b58_sig=`echo -n $b58_nonce | python -m trustx sign --signing-key ./user.signing.key | python -m trustx base58`
+```
+
+nonce 署名を引数に設定し、サービスのアクセストークン取得 API をコールする。
+
+```sh
+token=`python -m trustx.examples.service "GET /auth/token" --nonce $b58_nonce --signature $b58_sig`
+```
+
+アクセストークンを設定し、自分のプロフィール情報を取得する。
+
+```sh
+python -m trustx.examples.service "GET /profiles/me" --token $token
+```
+
+```
+{
+    "address": "14aynWt5xDo5Xkkw2G9bnydgBQne3hgffR"
+}
+```
+
+不正なアクセスの場合。
+
+```sh
+python -m trustx.examples.service "GET /profiles/me" --token invalid
+```
+
+```
+{
+    "error": "Invalid token"
+}
+```
+
+
 ## コンペティションモジュール
 
 内容は次の通り。
@@ -198,6 +254,11 @@ python tool.py addr --verifying-key ./user.verifying.key
     2. コンペティションにユーザー B, C, D が応募
     3. ユーザー A が、コンペティションの募集を締め切る
     4. ユーザー A が、ユーザー B, C に返信
+
+
+### 依存モジュール
+
+- セッションモジュール
 
 
 ## 業務委託契約サポートモジュール
