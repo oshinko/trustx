@@ -1,8 +1,9 @@
 import datetime
-import hashlib
 import hmac
 
 import base58
+
+from . import hashfunc
 
 
 def now():
@@ -24,37 +25,38 @@ class HMACSessionBuilder:
             try:
                 token = base58.b58decode(r.token)
                 i = 0
-                data = []
+                parts = []
                 while i < len(token):
                     length = token[i]
                     j = i + 1
                     i = j + length
-                    data.append(token[j:i])
-                r.sign = data[0]
-                ts = int.from_bytes(data[1], 'big')
+                    parts.append(token[j:i])
+                r.sign, ebin, *data = parts
+                ts = int.from_bytes(ebin, 'big')
                 r.expires = datetime.datetime.fromtimestamp(ts)
-                r.data = tuple(data[2:])
-                sign = hmac.new(secret, data[1] + b''.join(r.data), hashlib.sha256)
+                r.data = tuple(data)
+                message = ebin + b''.join(r.data)
+                sign = hmac.new(self.secret, message, hashfunc)
                 r.valid = r.sign == sign.digest()
             except Exception:
                 pass
         else:
-            self.data = data_or_token
-            self.expires = expires()
-            ebin = int(self.expires.timestamp()).to_bytes(8, 'big')
+            r.data = data_or_token
+            r.expires = expires()
+            ebin = int(r.expires.timestamp()).to_bytes(8, 'big')
             ebin = ebin.lstrip(b'\0')
-            message = ebin + b''.join(self.data)
-            self.sign = hmac.new(secret, message, hashlib.sha256).digest()
-            self.valid = True
+            message = ebin + b''.join(r.data)
+            r.sign = hmac.new(self.secret, message, hashfunc).digest()
+            r.valid = True
             token = bytearray()
-            token.extend(len(self.sign).to_bytes(1, 'big'))
-            token.extend(self.sign)
+            token.extend(len(r.sign).to_bytes(1, 'big'))
+            token.extend(r.sign)
             token.extend(len(ebin).to_bytes(1, 'big'))
             token.extend(ebin)
-            for x in self.data:
+            for x in r.data:
                 token.extend(len(x).to_bytes(1, 'big'))
                 token.extend(x)
-            self.token = base58.b58encode(token).decode()
+            r.token = base58.b58encode(token).decode()
         return r
 
 

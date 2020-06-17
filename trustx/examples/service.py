@@ -3,6 +3,7 @@ import json
 import sys
 
 import base58
+import ecdsa
 
 from .. import curve, get_address_from_verifying_key, hashfunc
 from ..sessions import HMACSessionBuilder
