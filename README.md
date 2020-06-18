@@ -186,6 +186,28 @@ python -m trustx addr --verifying-key ./user.verifying.key
     - 署名履歴から新しい鍵で署名し直すのが主なリカバリ案となる
 
 
+## ストレージモジュール
+
+- trustx パッケージ共通のストレージ
+
+```python
+import trustx.storages
+```
+
+
+## プロフィールモジュール
+
+- プロフィールを操作する
+
+```python
+from trustx.profiles import Profiles
+from trustx.storages import LocalStorage
+
+profiles = Profiles(LocalStorage())
+print('number of profiles is', len(profiles))
+```
+
+
 ## セッションモジュール
 
 ネットワークを利用するサービスへのサインアップおよびサインインに用いる。
@@ -255,6 +277,17 @@ python -m trustx.examples.service "GET /profiles/me" --token invalid
     3. ユーザー A が、コンペティションの募集を締め切る
     4. ユーザー A が、ユーザー B, C に返信
 
+```python
+from trustx.competitions import Competitions
+from trustx.storages import LocalStorage
+
+competitions = Competitions(LocalStorage())
+
+for competition in competitions:
+    if competition.active:
+        print(competition, 'is active')
+```
+
 
 ### 依存モジュール
 
@@ -322,3 +355,33 @@ Pro|3,000|一ヶ月|応募可能数 * 回|期間を過ぎたらリセット
 --|--|--|--
 コンペティション開催|10,000|一ヶ月間、開催情報が掲載される|実行時に課金が発生
 何らかのポイント追加|3,000|+100pt|実行時に課金が発生
+
+```python
+from trustx.payments import Payments
+from trustx.storages import LocalStorage
+
+payments = Payments(LocalStorage())
+print('number of payments is', len(payments))
+```
+
+
+## サーバーモジュール
+
+- 主に Web API を提供
+
+```python
+from trustx.servers import HTTPServer
+from trustx.storages import LocalStorage
+
+HTTPServer(LocalStorage())()
+```
+
+
+## サーバーモジュール用 UI
+
+- 標準のサーバーモジュール Web API 用 UI
+
+```sh
+cd ui
+python -m http.server
+```
