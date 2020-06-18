@@ -298,6 +298,16 @@ for competition in competitions:
 
 あくまでサポートであってデータの永続化を含め一切の責任を負わない。
 
+```python
+from trustx.contracts import Contracts
+from trustx.storages import LocalStorage
+
+contracts = Contracts(LocalStorage())
+
+for contract in contracts:
+    print('support for', contract.contractor, 'and', contract.contractee)
+```
+
 
 ### 依存モジュール
 
