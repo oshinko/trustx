@@ -379,11 +379,26 @@ print('number of payments is', len(payments))
 
 - 主に Web API を提供
 
+```sh
+python -m trustx.servers wsgi
+```
+
+もしくは
+
 ```python
-from trustx.servers import HTTPServer
+from wsgiref.simple_server import make_server
+
+from trustx.servers import wsgi
 from trustx.storages import LocalStorage
 
-HTTPServer(LocalStorage())()
+wsgi.storage = LocalStorage()
+
+with make_server('', 8000, wsgi) as httpd:
+    print(f'Serving HTTP on port 8000, control-C to stop')
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print('Shutting down.')
 ```
 
 
