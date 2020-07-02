@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Trust X Web UI</title>
+<style>
+h2 > a {
+  cursor: pointer;
+  text-decoration: underline;
+}
+h2 > a:hover {
+  cursor: pointer;
+  text-decoration: none;
+}
+.form {
+  margin: 0 0 1rem 0;
+  padding: 0;
+}
+.form > h1 {
+  margin: 0;
+  padding: 0;
+  font-size: 1.5rem;
+}
+.form > h1 a {
+  cursor: pointer;
+  text-decoration: underline;
+}
+.form > h1 a:hover {
+  cursor: pointer;
+  text-decoration: none;
+}
+.form > p {
+  margin: .25rem 0;
+  padding: 0;
+}
+.form > fieldset {
+  margin-bottom: .5rem;
+}
+.form > fieldset > input {
+  display: block;
+}
+.form > fieldset > input:not(:last-child) {
+  margin-bottom: .5rem;
+}
+.form > fieldset > input[type="text"] {
+  width: 16rem;
+}
+.form > button {
+  display: block;
+}
+.form > details {
+  margin: .5rem 0 .5rem 0;
+}
+.form > details > textarea {
+  padding: .5rem;
+  width: 99.2%;
+  height: 16rem;
+}
+.dummy {
+  background-color: #CCC;
+}
+</style>
+</head>
+<body>
+<noscript>
+  We're sorry, but it will not work properly unless JavaScript is enabled.
+  Please enable it to continue.
+</noscript>
+
+<div class="form" data-method="POST" data-uri="/passwords">
+  <p>セッショントークン取得のためのワンタイムパスワードを発行する。</p>
+  <fieldset>
+    <legend>key</legend>
+    <input type="file">
+    <input type="text" placeholder="Base58" disabled>
+  </fieldset>
+  <fieldset>
+    <legend>name</legend>
+    <input type="text" placeholder="Your name">
+  </fieldset>
+  <fieldset>
+    <legend>hook</legend>
+    <input type="text" placeholder="https://your.hook/address">
+  </fieldset>
+</div>
+
+<div class="form" data-method="POST" data-uri="/nonces">
+  <p>公開鍵の所有証明のためのノンスを発行する。</p>
+  <fieldset>
+    <legend>key</legend>
+    <input type="file">
+    <input type="text" placeholder="Base58" disabled>
+  </fieldset>
+</div>
+
+<div class="form" data-method="POST" data-uri="/tokens">
+  <p>セッショントークンを発行する。</p>
+  <fieldset>
+    <legend>hint</legend>
+    <input type="text" placeholder="Base58">
+  </fieldset>
+  <fieldset>
+    <legend>password</legend>
+    <input type="text" placeholder="Recieved password">
+  </fieldset>
+  <fieldset>
+    <legend>nonce</legend>
+    <input type="text" placeholder="Base58">
+  </fieldset>
+  <fieldset>
+    <legend>signature</legend>
+    <input type="file">
+    <input type="text" placeholder="Base58" disabled>
+  </fieldset>
+</div>
+
+<div class="form" data-method="POST" data-uri="/profiles">
+  <p>プロフィールを作成する。</p>
+  <fieldset>
+    <legend>hint</legend>
+    <input type="text" placeholder="Base58">
+  </fieldset>
+  <fieldset>
+    <legend>password</legend>
+    <input type="text" placeholder="Recieved password">
+  </fieldset>
+  <fieldset>
+    <legend>name</legend>
+    <input type="text" placeholder="Your name">
+  </fieldset>
+</div>
+
+<div class="form" data-method="GET" data-uri="/profiles/{name:Your key hash or name:me}">
+  <p>プロフィールを取得する。</p>
+  <fieldset>
+    <legend>token</legend>
+    <input type="text" placeholder="Base58">
+  </fieldset>
+</div>
+
+<div class="form" data-method="PUT" data-uri="/profiles/{name:Your key hash or name:me}/key">
+  <p>プロフィールに紐づく公開鍵を更新する。</p>
+  <fieldset>
+    <legend>token</legend>
+    <input type="text" placeholder="Base58">
+  </fieldset>
+  <fieldset>
+    <legend>nonce</legend>
+    <input type="text" placeholder="Base58">
+  </fieldset>
+  <fieldset>
+    <legend>signature</legend>
+    <input type="file">
+    <input type="text" placeholder="Base58" disabled>
+  </fieldset>
+</div>
+
+<div class="form" data-method="PUT" data-uri="/profiles/{name:Your key hash or name:me}/name">
+  <p>プロフィール名を更新する。</p>
+  <fieldset>
+    <legend>token</legend>
+    <input type="text" placeholder="Base58">
+  </fieldset>
+  <fieldset>
+    <legend>name</legend>
+    <input type="text" placeholder="Your new name">
+  </fieldset>
+</div>
+
+<div class="form" data-method="PUT" data-uri="/profiles/{name:Your key hash or name:me}/hook">
+  <p>プロフィールにサインインする際に必要な Web フックを更新する。</p>
+  <fieldset>
+    <legend>token</legend>
+    <input type="text" placeholder="Base58">
+  </fieldset>
+  <fieldset>
+    <legend>hint</legend>
+    <input type="text" placeholder="Base58">
+  </fieldset>
+  <fieldset>
+    <legend>password</legend>
+    <input type="text" placeholder="Recieved password">
+  </fieldset>
+</div>
+
+<div class="form" data-method="PUT" data-uri="/profiles/{name:Your key hash or name:me}/blocks">
+  <p>プロフィールに紐付くブロックを全て更新する。</p>
+  <fieldset>
+    <legend>token</legend>
+    <input type="text" placeholder="Base58">
+  </fieldset>
+  <fieldset>
+    <legend>blocks</legend>
+    <input type="file">
+  </fieldset>
+</div>
+
+<script>
+const DEFAULT_URI_PREFIX = 'http://localhost:8000';
+let h1 = document.createElement('h1');
+h1.innerText = document.querySelector('title').innerText;
+let body = document.querySelector('body');
+body.insertAdjacentElement('afterbegin', h1);
+let h2 = document.createElement('h2');
+let uriPrefix = document.createElement('a');
+uriPrefix.innerText = DEFAULT_URI_PREFIX;
+uriPrefix.addEventListener('click', evnet => {
+  let value = window.prompt('URI', uriPrefix.innerText);
+  uriPrefix.innerText = value || DEFAULT_URI_PREFIX;
+});
+h2.appendChild(document.createTextNode('URI: '));
+h2.appendChild(uriPrefix);
+body.insertBefore(h2, h1.nextSibling);
+for (let form of document.querySelectorAll('.form')) {
+  let method = document.createElement('span');
+  method.innerText = form.dataset.method;
+  let uri = document.createElement('span');
+  let action = document.createElement('h1');
+  action.appendChild(method);
+  action.appendChild(document.createTextNode(' '));
+  action.appendChild(uri);
+  form.insertAdjacentElement('afterbegin', action);
+  for (let part of form.dataset.uri.split(/\{([^\}]+)\}/g)) {
+    let elem;
+    if (!part || part.includes('/')) {
+      elem = document.createTextNode(part);
+    } else {
+      let vals = part.split(':');
+      let valName = vals[0];
+      let valDesc = vals.length >= 2 ? vals[1] : valName[0].toUpperCase() + valName.slice(1);
+      let valDefaultValue = vals.length >= 3 ? vals[2] : valName;
+      elem = document.createElement('a');
+      elem.innerText = valDefaultValue;
+      elem.addEventListener('click', evnet => {
+        let value = window.prompt(valDesc, elem.innerText);
+        if (value) elem.innerText = value;
+      });
+    }
+    uri.appendChild(elem);
+  }
+  for (let fieldset of form.querySelectorAll('fieldset')) {
+    let inputs = fieldset.querySelectorAll('input');
+    for (let input of inputs) {
+      input.setAttribute('name', fieldset.querySelector('legend').innerText);
+    }
+    if (inputs.length > 1) {
+      let switch_ = fieldset.querySelector('button');
+      if (!switch_) {
+        switch_ = document.createElement('button');
+        switch_.innerText = 'Switch';
+        fieldset.appendChild(switch_);
+      }
+      switch_.addEventListener('click', event => {
+        let inputs = fieldset.querySelectorAll('input');
+        let enabled = null;
+        inputs.forEach((x, i) => {
+          enabled = x.disabled ? enabled : i;
+          x.disabled = true;
+        });
+        let next = enabled == null || enabled + 1 == inputs.length ? 0 : enabled + 1;
+        inputs[next].disabled = false;
+        event.preventDefault();
+      });
+    }
+  }
+  let submit = document.createElement('button');
+  submit.innerText = 'Submit';
+  form.appendChild(submit);
+  let details = document.createElement('details');
+  let summary = document.createElement('summary');
+  summary.innerText = 'Response';
+  details.appendChild(summary);
+  let response = document.createElement('textarea');
+  response.spellcheck = false;
+  response.setAttribute('placeholder', '{}');
+  details.appendChild(response);
+  form.appendChild(details);
+  submit.addEventListener('click', event => {
+    let methodVal = form.dataset.method;
+    let uriVal = uriPrefix.innerText + uri.innerText;
+    let data;
+    if (['POST', 'PUT', 'PATCH'].includes(form.dataset.method)) {
+      data = new FormData();
+      for (let input of form.querySelectorAll('input')) {
+        if (!input.disabled) {
+          let value = input.files ? input.files[0] : input.value;
+          if (value) data.append(input.name, value);
+        }
+      }
+    } else {
+      form.querySelectorAll('input').forEach((input, i) => {
+        uriVal += i == 0 ? '?' : '&';
+        let name = encodeURIComponent(input.name);
+        let value = encodeURIComponent(input.value);
+        uriVal += name + '=' + value;
+      });
+    }
+    let req = new XMLHttpRequest();
+    req.open(methodVal, uriVal);
+    req.onreadystatechange = () => details.open = true;
+    req.onload = () => {
+      console.log(req.responseText);
+      try {
+        response.value = JSON.stringify(JSON.parse(req.responseText), null, 4);
+      } catch (e) {
+        response.value = req.responseText;
+        console.error(e);
+      }
+      response.value += response.value ? '\n' : '';
+      if (req.status != 200) {
+        response.value += req.status + ' ' + req.statusText;
+        console.error(req.status + ' ' + req.statusText);
+      }
+    };
+    req.onerror = () => {
+      response.value = req.statusText || 'Network error';
+      console.error(req.statusText || 'Network error');
+    };
+    req.send(data);
+    event.preventDefault();
+  });
+}
+</script>
+</body>
+</html>

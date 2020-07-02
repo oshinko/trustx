@@ -13,8 +13,9 @@
 プロフィールの YAML 例を次に示す。
 
 ```yaml
-BASE58_ContestProviderA_Sig_For_Skills:
-  by: BASE58_ContestProviderA_Address
+Base58_ContestProviderA_Sig_For_Skills:
+  by: Base58_ContestProviderA_PublicKey
+  to: Base58_User_PublicKey
   data:
     skills:
       word:
@@ -23,16 +24,18 @@ BASE58_ContestProviderA_Sig_For_Skills:
         level: 3
     signed: 2019-01-01T03:00:00
 
-BASE58_ContestProviderB_Sig_For_Skills:
-  by: BASE58_ContestProviderB_Address
+Base58_ContestProviderB_Sig_For_Skills:
+  by: Base58_ContestProviderB_PublicKey
+  to: Base58_User_PublicKey
   data:
     skills:
       簿記:
         level: 3
     signed: 2019-02-01T12:00:00+09:00
 
-BASE58_ClientA_Sig_For_Experiences:
-  by: BASE58_ClientA_Address
+Base58_ClientA_Sig_For_Experiences:
+  by: Base58_ClientA_PublicKey
+  to: Base58_User_PublicKey
   data:
     experiences:
       企業 A 経理事務:
@@ -42,8 +45,9 @@ BASE58_ClientA_Sig_For_Experiences:
         text: 神奈川県にある企業様の経理事務を担当しました。
     signed: 2019-12-28T19:00:00+09:00
 
-BASE58_FriendA_Sig_For_Experiences_And_Reputations:
-  by: BASE58_FriendA_Address
+Base58_FriendA_Sig_For_Experiences_And_Reputations:
+  by: Base58_FriendA_PublicKey
+  to: Base58_User_PublicKey
   data:
     experiences:
       - title: 知人 A 経理事務
@@ -55,8 +59,9 @@ BASE58_FriendA_Sig_For_Experiences_And_Reputations:
       - いつも助けていただいています。ありがとう！
     signed: 2020-01-31T19:00:00+09:00
 
-BASE58_ClientB_Sig_For_Experiences_And_Reputations:
-  by: BASE58_ClientB_Address
+Base58_ClientB_Sig_For_Experiences_And_Reputations:
+  by: Base58_ClientB_PublicKey
+  to: Base58_User_PublicKey
   data:
     experiences:
       - title: 企業 B 経理事務
@@ -68,8 +73,9 @@ BASE58_ClientB_Sig_For_Experiences_And_Reputations:
       - とても真面目な良い方です。
     signed: 2020-12-28T19:00:00+09:00
 
-BASE58_ClientA_Sig_For_Reputations:
-  by: BASE58_ClientA_Address
+Base58_ClientA_Sig_For_Reputations:
+  by: Base58_ClientA_PublicKey
+  to: Base58_User_PublicKey
   data:
     reputations:
       - とても真面目な良い方です。
@@ -78,18 +84,17 @@ BASE58_ClientA_Sig_For_Reputations:
 
 この人のスキルを証明するためのコンテスト主催者による署名例を次に示す。
 
-コンテスト主催者のキーを作成する。
+コンテスト主催者の鍵を作成する。
 
 ```sh
-python -m trustx gen --signing-key ./contest-provider.signing.key \
-                     --verifying-key ./contest-provider.verifying.key
+python -m trustx gen --secret-key ./contest-provider.secret.key \
+                     --public-key ./contest-provider.public.key
 ```
 
-ユーザーのキーを取得する。
-本来、ユーザー自信がキーペアを作成するが、例として検証キーのみ作成する。
+ユーザーの鍵を作成する。
 
 ```sh
-python -m trustx gen --verifying-key ./user.verifying.key
+python -m trustx gen --public-key ./user.public.key
 ```
 
 コンテストの成績データを用意する。
@@ -102,74 +107,99 @@ skills:
     level: 3
   excel:
     level: 3
-signed: `date +%Y-%m-%dT%H:%M:%S%:z`
+signed: '`date +%Y-%m-%dT%H:%M:%S%:z`'
 EOF
 ```
 
-ユーザーのキーとコンテストの成績データを結合したファイルを作成する。
+成績データをシリアライズする。
 
 ```sh
-python -m trustx concat ./user.verifying.key ./user.skills.yaml > ./user.skills.data
+cat ./user.skills.yaml | python -c "import json, sys, yaml; print(json.dumps(yaml.safe_load(sys.stdin), separators=(',', ':'), sort_keys=True), end='')" > ./users.skills.ser.json
+```
+
+ユーザーの鍵とコンテストの成績データを結合したファイルを作成する。
+
+```sh
+python -m trustx concat ./user.public.key ./users.skills.ser.json > ./user.skills.data
 ```
 
 署名する。
 
 ```sh
-python -m trustx sign --signing-key ./contest-provider.signing.key ./user.skills.data > ./user.skills.data.sig
+python -m trustx sign --secret-key ./contest-provider.secret.key ./user.skills.data > ./user.skills.data.sig
 python -m trustx base58 ./user.skills.data.sig
 ```
 
 ```
-4bjnskhE4MF3Mn59QzDfvuJTRCyNMU8n9e1PZiExXDEVE5XiW1LVTcD3MEseu5ze9udk3LabV6RvpFNgTuhbthKk
+5EhZAzktvFpGYh3zZJgv2qSiLYFreXCAJgmjbenpmUTFrv9VguYzrYU7Xch3HqQQAnZVqPh876fp1J38kbutoCkL
 ```
 
 署名を検証する。
 
 ```sh
-python -m trustx verify --verifying-key ./contest-provider.verifying.key \
-                      --data ./user.skills.data \
-                      ./user.skills.data.sig
+python -m trustx verify --public-key ./contest-provider.public.key \
+                        --data ./user.skills.data \
+                        ./user.skills.data.sig
 ```
 
 ```
 OK
 ```
 
-コンテスト主催者のアドレスを取得する。
+コンテスト主催者の公開鍵 (Base58) を取得する。
 
 ```sh
-python -m trustx addr --signing-key ./contest-provider.signing.key
+python -m trustx base58 ./contest-provider.public.key
 ```
 
 ```
-1LtfiUjeeZL3q4CneVAFd3M8a3wi3Sy8x9
+uJkHWNFwPVci3LEpzHLfq6efiSpRwJSAQUZsqTLR82Ro
 ```
 
-ユーザーのアドレスを取得する。
+ユーザーの公開鍵 (Base58) を取得する。
 
 ```sh
-python -m trustx addr --verifying-key ./user.verifying.key
+python -m trustx base58 ./user.public.key
 ```
 
 ```
-1NgQCSskEmtRg7xeFJnWRzt875czviaLwF
+iAQcYdrGxQei8yjwsW86p8eV2AntsPwriWY8pYonz9Sx
 ```
 
 署名をキーにし、コンテスト主催者のアドレスとデータを含めた YAML を作成する。
 
-ユーザーのアドレスを示す `to` は、システムの文脈から自明ならば省略できる。
+```sh
+cat user.blocks.yaml
+```
 
 ```yaml
-4bjnskhE4MF3Mn59QzDfvuJTRCyNMU8n9e1PZiExXDEVE5XiW1LVTcD3MEseu5ze9udk3LabV6RvpFNgTuhbthKk:
-  by: 1LtfiUjeeZL3q4CneVAFd3M8a3wi3Sy8x9
-  to: 1NgQCSskEmtRg7xeFJnWRzt875czviaLwF
+5EhZAzktvFpGYh3zZJgv2qSiLYFreXCAJgmjbenpmUTFrv9VguYzrYU7Xch3HqQQAnZVqPh876fp1J38kbutoCkL:
+  by: uJkHWNFwPVci3LEpzHLfq6efiSpRwJSAQUZsqTLR82Ro
+  to: iAQcYdrGxQei8yjwsW86p8eV2AntsPwriWY8pYonz9Sx
   data:
     skills:
       word:
         level: 3
       excel:
         level: 3
-    signed: 2020-06-15T14:03:49+09:00
+    signed: '2020-06-30T16:20:11+09:00'
+```
+
+一連の処理は、次のコマンドで代用できる。
+
+```sh
+# Sign
+python -m trustx.profiles sign --by ./contest-provider.secret.key \
+                               --to ./user.public.key \
+                               ./user.skills.json \
+  | python -m trustx yaml >> ./user.blocks.yaml
+
+# Verify
+python -m trustx.profiles verify ./user.blocks.yaml
+```
+
+```
+OK
 ```
 
 このような非常にシンプルな証明と検証のプロトコルを用いる。
@@ -210,57 +240,21 @@ print('number of profiles is', len(profiles))
 
 ## セッションモジュール
 
-ネットワークを利用するサービスへのサインアップおよびサインインに用いる。
-例を次に示す。
+サービスへのサインアップおよびサインインに用いる。
 
-ユーザーのキーを作成する。
+```python
+from datetime import timedelta
+from trustx.sessions import HMACSessionFactory
 
-```sh
-python -m trustx gen --signing-key ./user.signing.key \
-                     --verifying-key ./user.verifying.key
-```
+payload = b'payload1', b'payload2'
 
-ユーザーの検証キーを引数に設定し、サービスの nonce 取得 API をコールする。
+Session = HMACSessionFactory(b'your_secret')
+session1 = Session(*payload, life=timedelta(hours=1))
+assert session1, 'invalid session'
 
-```sh
-b58_vk=`python -m trustx base58 ./user.verifying.key`
-b58_nonce=`python -m trustx.examples.service "GET /auth/nonce" --verifying-key $b58_vk`
-```
-
-取得した nonce に署名し、Base58 に変換する。
-
-```sh
-b58_sig=`echo -n $b58_nonce | python -m trustx sign --signing-key ./user.signing.key | python -m trustx base58`
-```
-
-nonce 署名を引数に設定し、サービスのアクセストークン取得 API をコールする。
-
-```sh
-token=`python -m trustx.examples.service "GET /auth/token" --nonce $b58_nonce --signature $b58_sig`
-```
-
-アクセストークンを設定し、自分のプロフィール情報を取得する。
-
-```sh
-python -m trustx.examples.service "GET /profiles/me" --token $token
-```
-
-```
-{
-    "address": "14aynWt5xDo5Xkkw2G9bnydgBQne3hgffR"
-}
-```
-
-不正なアクセスの場合。
-
-```sh
-python -m trustx.examples.service "GET /profiles/me" --token invalid
-```
-
-```
-{
-    "error": "Invalid token"
-}
+session2 = Session.parse(session1.token)
+assert session2 == session1
+assert session2.data == payload
 ```
 
 
@@ -330,7 +324,6 @@ timeandmaterials = [(140, 2000),
                     (180, 0),
                     (float('inf'), 1500)]
 
-
 def f(hours):
     r = 0
     prev = 0
@@ -342,7 +335,6 @@ def f(hours):
             break
         prev = h
     return r
-
 
 print(f(181))
 ```
@@ -380,21 +372,22 @@ print('number of payments is', len(payments))
 - 主に Web API を提供
 
 ```sh
-python -m trustx.servers wsgi
+TRUSTX_SESSION_SECRET=your_secret python -m trustx.servers wsgi
 ```
 
 もしくは
 
 ```python
 from wsgiref.simple_server import make_server
-
 from trustx.servers import wsgi
+from trustx.sessions import HMACSessionFactory
 from trustx.storages import LocalStorage
 
 wsgi.storage = LocalStorage()
+wsgi.session = HMACSessionFactory(b'your_secret')
 
 with make_server('', 8000, wsgi) as httpd:
-    print(f'Serving HTTP on port 8000, control-C to stop')
+    print('Serving HTTP on port 8000, control-C to stop')
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -402,7 +395,7 @@ with make_server('', 8000, wsgi) as httpd:
 ```
 
 
-## サーバーモジュール用 UI
+## 標準 Web UI
 
 - 標準のサーバーモジュール Web API 用 UI
 
