@@ -173,7 +173,7 @@ def post(url, **kwargs):
         data = None
     req = urllib.request.Request(url, data, headers, method='POST')
     try:
-        with urllib.request.urlopen(req) as res:
+        with urllib.request.urlopen(req) as _:
             return True
     except urllib.error.HTTPError:
         pass

@@ -24,7 +24,8 @@ class SecretKey:
     def __init__(self, source=None):
         if source:
             if isinstance(source, (bytearray, bytes)):
-                self._sk = ecdsa.SigningKey.from_string(source, CURVE, hashfunc)
+                self._sk = ecdsa.SigningKey.from_string(source, CURVE,
+                                                        hashfunc)
             elif isinstance(source, str):
                 s = base58decode(source)
                 self._sk = ecdsa.SigningKey.from_string(s, CURVE, hashfunc)

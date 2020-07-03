@@ -95,7 +95,7 @@ class Profile:
 
     def __setattr__(self, name, value):
         if not name.startswith('_') and name not in self._changes:
-                self._changes[name] = getattr(self, name)
+            self._changes[name] = getattr(self, name)
         super().__setattr__(name, value)
 
     @property
