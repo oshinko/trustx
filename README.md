@@ -98,7 +98,6 @@ python -m trustx gen --public-key ./user.public.key
 ```
 
 コンテストの成績データを用意する。
-この時点で署名日時を含める。
 
 ```sh
 cat << EOF > user.skills.yaml
@@ -107,20 +106,20 @@ skills:
     level: 3
   excel:
     level: 3
-signed: '`date +%Y-%m-%dT%H:%M:%S%:z`'
+signed: `python -m trustx date --timezone +0900 --format "%Y-%m-%d %H:%M:%S%:z"`
 EOF
 ```
 
 成績データをシリアライズする。
 
 ```sh
-cat ./user.skills.yaml | python -c "import json, sys, yaml; print(json.dumps(yaml.safe_load(sys.stdin), separators=(',', ':'), sort_keys=True), end='')" > ./users.skills.ser.json
+cat ./user.skills.yaml | python -c "import datetime, json, sys, yaml; print(json.dumps(yaml.safe_load(sys.stdin), default=lambda x: x.isoformat() if isinstance(x, datetime.datetime) else x, separators=(',', ':'), sort_keys=True), end='')" > ./user.skills.ser.json
 ```
 
 ユーザーの鍵とコンテストの成績データを結合したファイルを作成する。
 
 ```sh
-python -m trustx concat ./user.public.key ./users.skills.ser.json > ./user.skills.data
+python -m trustx concat ./user.public.key ./user.skills.ser.json > ./user.skills.data
 ```
 
 署名する。
@@ -131,7 +130,7 @@ python -m trustx base58 ./user.skills.data.sig
 ```
 
 ```
-5EhZAzktvFpGYh3zZJgv2qSiLYFreXCAJgmjbenpmUTFrv9VguYzrYU7Xch3HqQQAnZVqPh876fp1J38kbutoCkL
+2HaK4mYEPt65GCYfMVyF6GE4jc9DJJ1BHhVUg57mv4wY6PnLXabjHKM2kj4uLJdGq31De1BKmV9VQMG4sncngAj
 ```
 
 署名を検証する。
@@ -173,7 +172,7 @@ cat user.blocks.yaml
 ```
 
 ```yaml
-5EhZAzktvFpGYh3zZJgv2qSiLYFreXCAJgmjbenpmUTFrv9VguYzrYU7Xch3HqQQAnZVqPh876fp1J38kbutoCkL:
+2HaK4mYEPt65GCYfMVyF6GE4jc9DJJ1BHhVUg57mv4wY6PnLXabjHKM2kj4uLJdGq31De1BKmV9VQMG4sncngAj:
   by: uJkHWNFwPVci3LEpzHLfq6efiSpRwJSAQUZsqTLR82Ro
   to: iAQcYdrGxQei8yjwsW86p8eV2AntsPwriWY8pYonz9Sx
   data:
@@ -182,7 +181,7 @@ cat user.blocks.yaml
         level: 3
       excel:
         level: 3
-    signed: '2020-06-30T16:20:11+09:00'
+    signed: 2020-07-03 13:52:42+09:00
 ```
 
 一連の処理は、次のコマンドで代用できる。
@@ -191,8 +190,7 @@ cat user.blocks.yaml
 # Sign
 python -m trustx.profiles sign --by ./contest-provider.secret.key \
                                --to ./user.public.key \
-                               ./user.skills.json \
-  | python -m trustx yaml >> ./user.blocks.yaml
+                               ./user.skills.yaml >> ./user.blocks.yaml
 
 # Verify
 python -m trustx.profiles verify ./user.blocks.yaml

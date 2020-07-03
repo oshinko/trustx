@@ -1,8 +1,7 @@
 import argparse
+import datetime
 import pathlib
 import sys
-
-import yaml
 
 from . import PublicKey, SecretKey, base58encode
 
@@ -35,8 +34,9 @@ subparser.add_argument('data', type=pathlib.Path, nargs='?')
 subparser = subparsers.add_parser('base58')
 subparser.add_argument('data', type=pathlib.Path, nargs='?')
 
-subparser = subparsers.add_parser('yaml')
-subparser.add_argument('data', type=pathlib.Path, nargs='?')
+subparser = subparsers.add_parser('date')
+subparser.add_argument('--timezone', type=str, default='+00:00')
+subparser.add_argument('--format', type=str)
 
 args = parser.parse_args()
 
@@ -86,6 +86,24 @@ if args.command == 'base58':
     data = args.data.read_bytes() if args.data else sys.stdin.buffer.read()
     print(base58encode(data))
 
-if args.command == 'yaml':
-    data = args.data.read_bytes() if args.data else sys.stdin.buffer.read()
-    print(yaml.dump(yaml.safe_load(data), sort_keys=False).strip())
+if args.command == 'date':
+    if len(args.timezone) not in (5, 6):
+        raise ValueError(f"invalid timezone '{args.timezone}'")
+    hours_and_minutes = args.timezone.split(':')
+    if len(hours_and_minutes) == 1:
+        hours_and_minutes = args.timezone[:3], args.timezone[3:]
+    hours, minutes = map(int, hours_and_minutes)
+    tz = datetime.timezone(datetime.timedelta(hours=hours, minutes=minutes))
+    date = datetime.datetime.now(tz=tz)
+    if args.format:
+        tz_with_colon = '%:z' in args.format
+        if tz_with_colon:
+            fmt = args.format.replace('%:z', '%z')
+        else:
+            fmt = args.format
+        out = date.strftime(fmt)
+        if tz_with_colon:
+            out = out[:-5] + out[-5:-2] + ':' + out[-2:]
+    else:
+        out = date.isoformat()
+    print(out)

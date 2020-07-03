@@ -1,17 +1,39 @@
 import datetime
 import json
 
+import yaml
+
 from . import PublicKey, base58decode, base58encode
 
 
-def _stringify(value):
+def _stringify(value, target=json):
     if isinstance(value, bytes):
         return base58encode(value)
-    if isinstance(value, datetime.datetime):
-        return value.isoformat()
     if isinstance(value, PublicKey):
-        return value.encode()
+        return base58encode(value.encode())
+    if target == json and isinstance(value, datetime.datetime):
+        return value.isoformat()
     return value
+
+
+def _stringify_yaml_walk(data, result=None):
+    r = result or {}
+    for k, v in data:
+        if isinstance(v, dict):
+            r[k] = _stringify_yaml_walk(v.items())
+        elif isinstance(v, (list, set, tuple)):
+            r[k] = _stringify_yaml_walk(enumerate(v), [])
+        else:
+            r[k] = _stringify(v, yaml)
+    return r
+
+
+def _stringify_yaml(data, target=yaml):
+    if isinstance(data, dict):
+        return _stringify_yaml_walk(data.items())
+    elif isinstance(data, (list, set, tuple)):
+        return _stringify_yaml_walk(enumerate(data), [])
+    return _stringify(data, yaml)
 
 
 class Block:
@@ -74,8 +96,8 @@ class Blocks:
             block.by = PublicKey(block_['by'])
             block.to = PublicKey(block_['to'])
             block.data = block_['data']
-            if 'signed' in block.data:
-                signed = block.data['signed']
+            signed = block.data.get('signed')
+            if isinstance(signed, str):
                 block.data['signed'] = datetime.datetime.fromisoformat(signed)
             block.signature = base58decode(signature)
             r.add(block, verify)
@@ -162,7 +184,6 @@ if __name__ == '__main__':
     import argparse
     import pathlib
     import sys
-    import yaml
     from . import SecretKey
 
     parser = argparse.ArgumentParser()
@@ -171,6 +192,7 @@ if __name__ == '__main__':
     subparser = subparsers.add_parser('sign')
     subparser.add_argument('--by', type=pathlib.Path, required=True)
     subparser.add_argument('--to', type=pathlib.Path, required=True)
+    subparser.add_argument('--output', type=str, default='yaml')
     subparser.add_argument('data', type=pathlib.Path, nargs='?')
 
     subparser = subparsers.add_parser('verify')
@@ -185,7 +207,11 @@ if __name__ == '__main__':
         data_dict = yaml.safe_load(data)
         sig = base58encode(by.sign(to.encode() + Block.serialize(data_dict)))
         blocks = {sig: dict(by=by.public_key, to=to, data=data_dict)}
-        print(json.dumps(blocks, default=_stringify, indent=4))
+        if args.output == 'yaml':
+            out = yaml.dump(_stringify_yaml(blocks), sort_keys=False).strip()
+        else:
+            out = json.dumps(blocks, default=_stringify, indent=4)
+        print(out)
 
     if args.command == 'verify':
         data = args.data.read_bytes() if args.data else sys.stdin.buffer.read()
