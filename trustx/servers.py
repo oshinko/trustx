@@ -162,6 +162,41 @@ class WSGI:
 wsgi = WSGI()
 
 
+class BlockWithoutSignature:
+    def __init__(self, block):
+        self.__dict__ = {k: v for k, v in vars(block).items()
+                         if k != 'signature'}
+
+
+def jvars(obj):
+    return {k: v for k, v in vars(obj).items() if not k.startswith('_')}
+
+
+def stringify(value):
+    if isinstance(value, bytes):
+        return base58encode(value)
+    if isinstance(value, datetime.datetime):
+        return value.isoformat()
+    if isinstance(value, PublicKey):
+        return value.hash
+    if isinstance(value, Profile):
+        r = jvars(value)
+        r.update(blocks=value.blocks)
+        return r
+    if isinstance(value, Blocks):
+        return {base58encode(block.signature): BlockWithoutSignature(block)
+                for block in value}
+    try:
+        value = jvars(value)
+    except TypeError:
+        pass
+    return value
+
+
+def jsonify(obj):
+    return json.dumps(obj, default=stringify)
+
+
 def post(url, **kwargs):
     headers = {'User-Agent': 'TrustX/' + __version__}
     if 'json' in kwargs:
@@ -182,13 +217,9 @@ def post(url, **kwargs):
 
 @wsgi.route('/')
 def index():
-    print(wsgi.request.args)
-    return 'Hello!'
-
-
-@wsgi.route('/a/<b>/c')
-def abc(b):
-    return str(b)
+    profile = Profiles(wsgi.storage).get(name='osnk')
+    print(profile.blocks)
+    return jsonify(profile)
 
 
 def get_key_from_request():
@@ -241,7 +272,7 @@ def post_password():
     expires = encode_datetime(session.expires)
     hint = base58encode(joinb(session.sign, expires, hint_type, hint_data))
     if post(hook, json={'text': password}):
-        return json.dumps(hint)
+        return jsonify(hint)
     return '', 400
 
 
@@ -250,7 +281,7 @@ def post_nonce():
     key = get_key_from_request()
     if key:
         session = wsgi.session(key.encode(), life=SHORT)
-        return json.dumps(session.token)
+        return jsonify(session.token)
     return '', 400
 
 
@@ -280,7 +311,13 @@ def post_token():
         if not key.verify(signature, data=nonce.encode()):
             return '', 403
         profile_id = bytes.fromhex(Profiles(wsgi.storage).get(key=key).id)
-    return json.dumps(wsgi.session(profile_id, life=LONG).token)
+    return jsonify(wsgi.session(profile_id, life=LONG).token)
+
+
+class ProfileWithToken:
+    def __init__(self, profile, token):
+        self.__dict__ = vars(profile)
+        self.token = token
 
 
 @wsgi.route('/profiles', methods=['POST'])
@@ -315,7 +352,7 @@ def post_profile():
     me.hook = hook
     profiles.put(me)
     token = wsgi.session(bytes.fromhex(me.id), life=LONG).token
-    return json.dumps(dict(**vars(me), **dict(token=token)))
+    return jsonify(ProfileWithToken(me, token))
 
 
 class HTTPError(Exception):
@@ -334,30 +371,15 @@ def get_profile_from_token():
     return Profiles(wsgi.storage).get(id=session.data[0].hex())
 
 
-def stringify(value):
-    if isinstance(value, bytes):
-        return base58encode(value)
-    if isinstance(value, datetime.datetime):
-        return value.isoformat()
-    return value
+def is_mine(profile, name_or_keyhash):
+    id_ = ('me', profile.name) + ((profile.key.hash,) if profile.key else ())
+    return name_or_keyhash in id_
 
 
-def block_details(block_dict):
-    r = block_dict.copy()
-    r['by'] = dict(base58=r['by'], hash=PublicKey(r['by']).hash)
-    r['to'] = dict(base58=r['to'], hash=PublicKey(r['to']).hash)
-    return r
-
-
-def jsonify(obj):
-    d = vars(obj).copy()
-    if isinstance(obj, Profile) and 'blocks' in d:
-        d['blocks'] = {base58encode(k): block_details(v)
-                       for k, v in d['blocks'].items()}
-    elif isinstance(obj, Blocks):
-        d = {base58encode(k): block_details(v) for k, v in d.items()}
-    d = {k: v for k, v in d.items() if not k.startswith('_')}
-    return json.dumps(d, default=stringify)
+class OtherProfile:
+    def __init__(self, profile):
+        self.__dict__ = {k: v for k, v in vars(profile).items()
+                         if k in ('id', 'name', 'blocks')}
 
 
 @wsgi.route('/profiles/<name_or_keyhash>')
@@ -366,15 +388,14 @@ def get_profile(name_or_keyhash):
         me = get_profile_from_token()
     except HTTPError as e:
         return '', e.status
-    if me.name == name_or_keyhash or name_or_keyhash == 'me':
+    if is_mine(me, name_or_keyhash):
         return jsonify(me)
     profiles = Profiles(wsgi.storage)
     other = profiles.get(name=name_or_keyhash)
     if not other:
-        other = profiles.get(hash=name_or_keyhash)
+        other = profiles.get(keyhash=name_or_keyhash)
     if other:
-        other = {k: v for k, v in vars(other).items() if k in ('id', 'name')}
-        return jsonify(other)
+        return jsonify(OtherProfile(other))
 
 
 @wsgi.route('/profiles/<name_or_keyhash>/key', methods=['PUT'])
@@ -383,7 +404,7 @@ def put_profile_key(name_or_keyhash):
         me = get_profile_from_token()
     except HTTPError as e:
         return '', e.status
-    if me.name != name_or_keyhash and name_or_keyhash != 'me':
+    if not is_mine(me, name_or_keyhash):
         return '', 403
     nonce = WSGI.request.form.get('nonce')
     signature = WSGI.request.form.get('signature')
@@ -412,7 +433,7 @@ def put_profile_name(name_or_keyhash):
         me = get_profile_from_token()
     except HTTPError as e:
         return '', e.status
-    if me.name != name_or_keyhash and name_or_keyhash != 'me':
+    if not is_mine(me, name_or_keyhash):
         return '', 403
     name = wsgi.request.form.get('name')
     if not name:
@@ -432,7 +453,7 @@ def put_profile_hook(name_or_keyhash):
         me = get_profile_from_token()
     except HTTPError as e:
         return '', e.status
-    if me.name != name_or_keyhash and name_or_keyhash != 'me':
+    if not is_mine(me, name_or_keyhash):
         return '', 403
     hint = wsgi.request.form.get('hint')
     password = wsgi.request.form.get('password')
@@ -460,16 +481,20 @@ def put_profile_blocks(name_or_keyhash):
         me = get_profile_from_token()
     except HTTPError as e:
         return '', e.status
-    if me.name != name_or_keyhash and name_or_keyhash != 'me':
+    if not is_mine(me, name_or_keyhash):
         return '', 403
     if not me.key:
         return '', 403
     blocks = wsgi.request.form.get('blocks')
     if not blocks:
         return '', 400
-    blocks = Blocks.parse(yaml.safe_load(blocks))
+    profiles = Profiles(wsgi.storage)
+    try:
+        blocks = profiles.parse_blocks(yaml.safe_load(blocks))
+    except ValueError:
+        return '', 400
     me.blocks.update(blocks)
-    Profiles(wsgi.storage).put(me)
+    profiles.put(me)
     return jsonify(blocks)
 
 

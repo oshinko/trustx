@@ -12,11 +12,25 @@ class Kind:
 
 
 class LocalStorageKind(Kind):
+    ENTITY_PATH_SUFFIX = '.pickle'
+
     def __init__(self, path):
         self.path = path
 
+    def _iter_entity_path(self):
+        for path in self.path.iterdir():
+            if path.is_file() and path.suffix == self.ENTITY_PATH_SUFFIX:
+                yield path
+
+    def __iter__(self):
+        for path in self._iter_entity_path():
+            yield pickle.load(path.open('br'))
+
+    def __len__(self):
+        return len(list(self._iter_entity_path()))
+
     def _get_entity_path(self, id):
-        return (self.path / str(id)).with_suffix('.pickle')
+        return (self.path / str(id)).with_suffix(self.ENTITY_PATH_SUFFIX)
 
     def get(self, id):
         path = self._get_entity_path(id)
@@ -28,6 +42,9 @@ class LocalStorageKind(Kind):
             entity['id'] = uuid.uuid4().hex
         path = self._get_entity_path(entity['id'])
         pickle.dump(entity, path.open('bw'))
+
+    def delete(self, id):
+        self._get_entity_path(id).unlink()
 
 
 class LocalStorage:

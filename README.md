@@ -14,8 +14,8 @@
 
 ```yaml
 Base58_ContestProviderA_Sig_For_Skills:
-  by: Base58_ContestProviderA_PublicKey
-  to: Base58_User_PublicKey
+  by: ContestProviderA_PublicKey_Hash
+  to: User_PublicKey_Hash
   data:
     skills:
       word:
@@ -25,8 +25,8 @@ Base58_ContestProviderA_Sig_For_Skills:
     signed: 2019-01-01T03:00:00
 
 Base58_ContestProviderB_Sig_For_Skills:
-  by: Base58_ContestProviderB_PublicKey
-  to: Base58_User_PublicKey
+  by: ContestProviderB_PublicKey_Hash
+  to: User_PublicKey_Hash
   data:
     skills:
       簿記:
@@ -34,8 +34,8 @@ Base58_ContestProviderB_Sig_For_Skills:
     signed: 2019-02-01T12:00:00+09:00
 
 Base58_ClientA_Sig_For_Experiences:
-  by: Base58_ClientA_PublicKey
-  to: Base58_User_PublicKey
+  by: ClientA_PublicKey_Hash
+  to: User_PublicKey_Hash
   data:
     experiences:
       企業 A 経理事務:
@@ -46,8 +46,8 @@ Base58_ClientA_Sig_For_Experiences:
     signed: 2019-12-28T19:00:00+09:00
 
 Base58_FriendA_Sig_For_Experiences_And_Reputations:
-  by: Base58_FriendA_PublicKey
-  to: Base58_User_PublicKey
+  by: FriendA_PublicKey_Hash
+  to: User_PublicKey_Hash
   data:
     experiences:
       - title: 知人 A 経理事務
@@ -60,8 +60,8 @@ Base58_FriendA_Sig_For_Experiences_And_Reputations:
     signed: 2020-01-31T19:00:00+09:00
 
 Base58_ClientB_Sig_For_Experiences_And_Reputations:
-  by: Base58_ClientB_PublicKey
-  to: Base58_User_PublicKey
+  by: ClientB_PublicKey_Hash
+  to: User_PublicKey_Hash
   data:
     experiences:
       - title: 企業 B 経理事務
@@ -74,8 +74,8 @@ Base58_ClientB_Sig_For_Experiences_And_Reputations:
     signed: 2020-12-28T19:00:00+09:00
 
 Base58_ClientA_Sig_For_Reputations:
-  by: Base58_ClientA_PublicKey
-  to: Base58_User_PublicKey
+  by: ClientA_PublicKey_Hash
+  to: User_PublicKey_Hash
   data:
     reputations:
       - とても真面目な良い方です。
@@ -91,109 +91,114 @@ python -m trustx gen --secret-key ./contest-provider.secret.key \
                      --public-key ./contest-provider.public.key
 ```
 
+コンテスト主催者の公開鍵のハッシュ値を取得する。
+
+```sh
+python -m trustx hash --public-key ./contest-provider.public.key
+```
+
+```
+1LtfiUjeeZL3q4CneVAFd3M8a3wi3Sy8x9
+```
+
 ユーザーの鍵を作成する。
 
 ```sh
 python -m trustx gen --public-key ./user.public.key
 ```
 
-コンテストの成績データを用意する。
+ユーザーの公開鍵のハッシュ値を取得する。
 
 ```sh
-cat << EOF > user.skills.yaml
-skills:
-  word:
-    level: 3
-  excel:
-    level: 3
-signed: `python -m trustx date --timezone +0900 --format "%Y-%m-%d %H:%M:%S%:z"`
+python -m trustx hash --public-key ./user.public.key
+```
+
+```
+14aynWt5xDo5Xkkw2G9bnydgBQne3hgffR
+```
+
+コンテストの結果を証明するデータを用意する。
+
+```sh
+cat << EOF > user.block.yaml
+by: 1LtfiUjeeZL3q4CneVAFd3M8a3wi3Sy8x9
+to: 14aynWt5xDo5Xkkw2G9bnydgBQne3hgffR
+data:
+  skills:
+    word:
+      level: 3
+    excel:
+      level: 3
+  signed: `python -m trustx date --timezone +0900 --format "%Y-%m-%d %H:%M:%S%:z"`
 EOF
 ```
 
-成績データをシリアライズする。
+データをシリアライズする。
 
 ```sh
-cat ./user.skills.yaml | python -c "import datetime, json, sys, yaml; print(json.dumps(yaml.safe_load(sys.stdin), default=lambda x: x.isoformat() if isinstance(x, datetime.datetime) else x, separators=(',', ':'), sort_keys=True), end='')" > ./user.skills.ser.json
+cat ./user.block.yaml | \
+python -c "import datetime, json, sys, yaml
+print(json.dumps(yaml.safe_load(sys.stdin),
+                 default=lambda x: x.isoformat() if isinstance(x, datetime.datetime) else x,
+                 separators=(',', ':'), sort_keys=True), end='')" > ./user.block.ser.json
 ```
 
-ユーザーの鍵とコンテストの成績データを結合したファイルを作成する。
+コンテスト主催者による署名を行う。
 
 ```sh
-python -m trustx concat ./user.public.key ./user.skills.ser.json > ./user.skills.data
-```
-
-署名する。
-
-```sh
-python -m trustx sign --secret-key ./contest-provider.secret.key ./user.skills.data > ./user.skills.data.sig
-python -m trustx base58 ./user.skills.data.sig
-```
-
-```
-2HaK4mYEPt65GCYfMVyF6GE4jc9DJJ1BHhVUg57mv4wY6PnLXabjHKM2kj4uLJdGq31De1BKmV9VQMG4sncngAj
+python -m trustx sign --secret-key ./contest-provider.secret.key ./user.block.ser.json > ./user.block.sig
 ```
 
 署名を検証する。
 
 ```sh
 python -m trustx verify --public-key ./contest-provider.public.key \
-                        --data ./user.skills.data \
-                        ./user.skills.data.sig
+                        --data ./user.block.ser.json \
+                        ./user.block.sig
 ```
 
 ```
 OK
 ```
 
-コンテスト主催者の公開鍵 (Base58) を取得する。
+署名の Base58 を取得する。
 
 ```sh
-python -m trustx base58 ./contest-provider.public.key
+python -m trustx base58 ./user.block.sig
 ```
 
 ```
-uJkHWNFwPVci3LEpzHLfq6efiSpRwJSAQUZsqTLR82Ro
+3Cj67sEUuD1EBfmbkCgWeBDp9cVh3xm7prcirraWyjoWw568qKUsVtLSevmRfMaW6HXRuFZc8h649jMBakgm7F98
 ```
 
-ユーザーの公開鍵 (Base58) を取得する。
-
-```sh
-python -m trustx base58 ./user.public.key
-```
-
-```
-iAQcYdrGxQei8yjwsW86p8eV2AntsPwriWY8pYonz9Sx
-```
-
-署名をキーにし、コンテスト主催者のアドレスとデータを含めた YAML を作成する。
+署名をキーにし、ファイルに保存する。
 
 ```sh
-cat user.blocks.yaml
+cat ./user.blocks.yaml
 ```
 
 ```yaml
-2HaK4mYEPt65GCYfMVyF6GE4jc9DJJ1BHhVUg57mv4wY6PnLXabjHKM2kj4uLJdGq31De1BKmV9VQMG4sncngAj:
-  by: uJkHWNFwPVci3LEpzHLfq6efiSpRwJSAQUZsqTLR82Ro
-  to: iAQcYdrGxQei8yjwsW86p8eV2AntsPwriWY8pYonz9Sx
+3Cj67sEUuD1EBfmbkCgWeBDp9cVh3xm7prcirraWyjoWw568qKUsVtLSevmRfMaW6HXRuFZc8h649jMBakgm7F98:
+  by: 1LtfiUjeeZL3q4CneVAFd3M8a3wi3Sy8x9
+  to: 14aynWt5xDo5Xkkw2G9bnydgBQne3hgffR
   data:
     skills:
       word:
         level: 3
       excel:
         level: 3
-    signed: 2020-07-03 13:52:42+09:00
+    signed: 2020-07-05 13:42:32+09:00
 ```
 
 一連の処理は、次のコマンドで代用できる。
 
 ```sh
 # Sign
-python -m trustx.profiles sign --by ./contest-provider.secret.key \
-                               --to ./user.public.key \
-                               ./user.skills.yaml >> ./user.blocks.yaml
-
+python -m trustx.profiles sign --secret-key ./contest-provider.secret.key \
+                               ./user.block.yaml >> ./user.blocks.yaml
 # Verify
-python -m trustx.profiles verify ./user.blocks.yaml
+python -m trustx.profiles verify --public-key ./contest-provider.public.key \
+                                 ./user.blocks.yaml
 ```
 
 ```
@@ -207,7 +212,7 @@ OK
 - Bitcoin ブロックチェーンとの共通点
     - 楕円曲線電子署名アルゴリズム (ECDSA)
     - バイナリデータのウェブセーフな表現に Base58 を使用
-    - 公開鍵のアドレス変換処理
+    - 公開鍵のハッシュ生成アルゴリズム (P2PKH)
 - 秘密鍵の漏洩や紛失は信用の損失に直結する
     - コンテストプロバイダを始めとした組織では HSM の導入を推奨
     - 署名日時をデータに含めたところで対策にはならない

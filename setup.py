@@ -19,7 +19,7 @@ setup(
     description='Signable profile exchange network service.',
     author='Oshinko',
     author_email='osnk@renjaku.jp',
-    url='https://github.com/maesin/trustx',
+    url='https://github.com/oshinko/trustx',
     packages=[name],
     install_requires=Path('requirements.txt').read_text().split(),
     classifiers=[
